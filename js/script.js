@@ -1,20 +1,20 @@
 document.addEventListener("DOMContentLoaded", () => {
-  fetch("https://dummyjson.com/products")
+  fetch("http://localhost:8080/api/productos")
     .then((response) => {
       if (!response || !response.ok) {
-        throw new Error("API DummyJSON no disponible");
+        throw new Error("API de Talentotech no disponible");
       }
       return response.json();
     })
     .then((data) => {
-      if (data && data.products) {
-        cargarProductos(data.products.slice(0, 10)); // Solo mostramos 10 productos
+      if (data) {
+        cargarProductos(data);
       } else {
-        throw new Error("Formato inesperado de DummyJSON");
+        throw new Error("Formato inesperado de la API de Talentotech");
       }
     })
     .catch((error) =>
-      console.error("Error al obtener productos de DummyJSON", error)
+      console.error("Error al obtener productos de Talentotech", error)
     );
 
   function cargarProductos(data) {
@@ -23,26 +23,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
     data.forEach((producto) => {
       const shortDescription =
-        producto.description.split(" ").slice(0, 5).join(" ") + "...";
+        producto.descripcion.split(" ").slice(0, 5).join(" ") + "...";
 
       productosContainer.innerHTML += `
         <div class="card">
           <img src="${
-            producto.image || producto.thumbnail
-          }" class="card-img-top" alt="${producto.title}">
+            producto.imagen
+          }" class="card-img-top" alt="${producto.nombre}">
           <div class="card-body">
-            <h5 class="card-title">${producto.title}</h5>
+            <h5 class="card-title">${producto.nombre}</h5>
             <p class="card-text short-description">${shortDescription}</p>
             <p class="card-text full-description" style="display: none;">${
-              producto.description
+              producto.descripcion
             }</p>
             <button class="btn btn-link" onclick="toggleDescription(this)">Ver descripción</button>
-            <p class="card-text">$${producto.price}</p>
+            <p class="card-text">$${producto.precio}</p>
             <button class="btn btn-primary" onclick="addToCart(${
               producto.id
-            }, '${producto.image || producto.thumbnail}', '${
-        producto.title
-      }', ${producto.price}, this)">Agregar al carrito</button>
+            }, '${producto.imagen}', '${
+        producto.nombre
+      }', ${producto.precio}, this)">Agregar al carrito</button>
           </div>
         </div>
       `;
@@ -151,21 +151,45 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    const total = cart.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0
-    );
-    document.getElementById("modal-total").textContent = total.toFixed(2);
+    const pedido = {
+      productos: cart.map(item => ({ id: item.id, cantidad: item.quantity })),
+      // Aquí puedes agregar más detalles del pedido si es necesario
+    };
 
-    // Mostrar el modal
-    const modal = new bootstrap.Modal(
-      document.getElementById("compraExitosaModal")
-    );
-    modal.show();
+    fetch("http://localhost:8080/api/productos/pedidos", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(pedido),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Error al realizar el pedido");
+        }
+        return response.json();
+      })
+      .then((data) => {
+        const total = cart.reduce(
+          (sum, item) => sum + item.price * item.quantity,
+          0
+        );
+        document.getElementById("modal-total").textContent = total.toFixed(2);
 
-    // Limpiar el carrito después de la compra
-    localStorage.clear();
-    updateCartUI();
+        // Mostrar el modal
+        const modal = new bootstrap.Modal(
+          document.getElementById("compraExitosaModal")
+        );
+        modal.show();
+
+        // Limpiar el carrito después de la compra
+        localStorage.clear();
+        updateCartUI();
+      })
+      .catch((error) => {
+        console.error("Error en la compra:", error);
+        alert("No se pudo realizar la compra. Inténtalo de nuevo más tarde.");
+      });
   });
 
   updateCartUI();
